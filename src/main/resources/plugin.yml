@@ -1,0 +1,13 @@
+name: SecurityItemByPoints
+version: '${version}'
+main: com.sixarea.securityitembypoints.SecurityItemByPoints
+authors: [ Jo_maYple ]
+description: a way to save you Item
+depend: [NBTAPI, YukiNoaAPI, PlayerPoints]
+commands:
+  securityitembypoints:
+    aliases: [sibp]
+    usage: None
+permissions:
+  securityitembypoints.op:
+    default: op
