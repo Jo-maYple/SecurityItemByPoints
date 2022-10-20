@@ -6,21 +6,20 @@ import com.sixarea.securityitembypoints.gui.GUI;
 import de.tr7zw.nbtapi.NBTCompound;
 import de.tr7zw.nbtapi.NBTContainer;
 import de.tr7zw.nbtapi.NBTItem;
+import org.bukkit.Material;
 import org.bukkit.command.*;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
-import pers.tany.yukinoaapi.realizationpart.builder.ItemBuilder;
+import org.bukkit.inventory.meta.ItemMeta;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-
-import static pers.tany.yukinoaapi.interfacepart.item.IItem.*;
-import static pers.tany.yukinoaapi.interfacepart.player.IPlayer.giveItem;
 
 
 public class Commands implements TabExecutor {
@@ -86,18 +85,24 @@ public class Commands implements TabExecutor {
                 ItemStack notice = NBTItem.convertNBTtoItem(new NBTContainer(ConfigUtil.config.getString("ChestInfo.notice")));
                 ItemStack buy = NBTItem.convertNBTtoItem(new NBTContainer(ConfigUtil.config.getString("ChestInfo.buy")));
                 ItemStack history = NBTItem.convertNBTtoItem(new NBTContainer(ConfigUtil.config.getString("ChestInfo.history")));
-                ItemBuilder ib = new ItemBuilder(history);
+                //ItemBuilder ib = new ItemBuilder(history);
+                List<String> lore = new ArrayList<>();
+                if (history.getItemMeta().hasLore())
+                     lore.addAll(history.getItemMeta().getLore());
                 if (ConfigUtil.data.getString("Data." + sender.getName() + ".time") == null){
-                    ib.addLore("§7§o§l保险未购买");
+                    lore.add("§7§o§l保险未购买");
                 } else {
-                    ib.addLore("§6购买时间§7:§e§o" + ConfigUtil.data.getString("Data." + sender.getName() + ".time"));
+                    lore.add("§6购买时间§7:§e§o" + ConfigUtil.data.getString("Data." + sender.getName() + ".time"));
                     if (!ConfigUtil.data.getString("Data." + sender.getName() + ".count").equals("1")){
-                        ib.addLore("§7§o§l保险已失效");
+                        lore.add("§7§o§l保险已失效");
                     } else {
-                        ib.addLore("§b§o§l保险生效中");
+                        lore.add("§b§o§l保险生效中");
                     }
                 }
-                history = ib.getItemStack();
+                ItemMeta tempMeta = history.getItemMeta();
+                tempMeta.setLore(lore);
+                history.setItemMeta(tempMeta);
+                //history = ib.getItemStack();
                 String title = ConfigUtil.config.getString("ChestInfo.title");
                 GUI.getChestGui((Player) sender, title, notice, buy, history);
                 return true;
@@ -132,7 +137,7 @@ public class Commands implements TabExecutor {
                 else if (!sender.hasPermission("sibp.op")) {
                     sender.sendMessage("§9[§3SIBP§9] §f-> §e§l您没有使用该命令的权限");
                 } else {
-                    if (!isEmptyHand((Player)sender)){
+                    if (((Player)sender).getEquipment().getItemInMainHand() == null || ((Player)sender).getEquipment().getItemInMainHand().getType().equals(Material.AIR)){
                         if (args[1].equalsIgnoreCase("notice")) {
                             NBTCompound itemData = NBTItem.convertItemtoNBT(((Player) sender).getInventory().getItemInMainHand());
                             ConfigUtil.config.set("ChestInfo.notice", itemData.toString());
@@ -189,7 +194,8 @@ public class Commands implements TabExecutor {
                         sender.sendMessage("§9[§3SIBP§9] §f-> §e§l玩家不存在");
                         return true;
                     } else {
-                        giveItem((Player) sender, NBTItem.convertNBTtoItem(new NBTContainer(ConfigUtil.data.getString("Data." + args[1] + ".data"))));
+                        ((Player) sender).getInventory().addItem(NBTItem.convertNBTtoItem(new NBTContainer(ConfigUtil.data.getString("Data." + args[1] + ".data"))));
+                        //giveItem((Player) sender, NBTItem.convertNBTtoItem(new NBTContainer(ConfigUtil.data.getString("Data." + args[1] + ".data"))));
                         sender.sendMessage("§9[§3SIBP§9] §f-> §e§l发送成功");
                     }
                 }

@@ -5,6 +5,7 @@ import com.sixarea.securityitembypoints.configUtil.ConfigUtil;
 import de.tr7zw.nbtapi.NBTCompound;
 import de.tr7zw.nbtapi.NBTContainer;
 import de.tr7zw.nbtapi.NBTItem;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -14,21 +15,31 @@ import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.ItemStack;
-import pers.tany.yukinoaapi.interfacepart.item.IItem;
-import pers.tany.yukinoaapi.realizationpart.builder.ItemBuilder;
+import org.bukkit.inventory.meta.ItemMeta;
 
 import java.io.File;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
-
-import static org.bukkit.Material.AIR;
-import static pers.tany.yukinoaapi.interfacepart.item.IItem.*;
-import static pers.tany.yukinoaapi.interfacepart.player.IPlayer.giveItem;
 
 
 public class Listeners implements Listener {
+
+    private static final Material AIR = Material.AIR;
+
+    public static boolean isEmpty(ItemStack itemstack){
+        return itemstack == null || itemstack.getType().equals(AIR);
+    }
+
+    public static String itemToString(ItemStack itemStack){
+        NBTCompound itemData = NBTItem.convertItemtoNBT(itemStack);
+        return itemData.toString();
+    }
+    public static ItemStack stringToItem(String st){
+        return NBTItem.convertNBTtoItem(new NBTContainer(st));
+    }
     @EventHandler
     public void onClick(InventoryClickEvent e){
         LocalDateTime dateTime = LocalDateTime.now();
@@ -55,10 +66,17 @@ public class Listeners implements Listener {
                     SecurityItemByPoints.ppAPI.take(e.getWhoClicked().getUniqueId(), 1000);
                     e.getWhoClicked().sendMessage("购买成功");
                     ItemStack tempstack = e.getWhoClicked().getInventory().getItemInMainHand();
-                    ItemBuilder ib = new ItemBuilder(tempstack);
-                    ib.addLore("§0UUID:" + e.getWhoClicked().getUniqueId());
-                    e.getWhoClicked().getInventory().setItemInMainHand(ib.getItemStack());
-                    ConfigUtil.data.set("Data." + e.getWhoClicked().getName() + ".data", getItemNBT(ib.getItemStack()));
+                    //ItemBuilder ib = new ItemBuilder(tempstack);
+                    //ib.addLore("§0UUID:" + e.getWhoClicked().getUniqueId());
+                    List<String> lore = new ArrayList<>();
+                    if (tempstack.getItemMeta().hasLore())
+                        lore.addAll(tempstack.getItemMeta().getLore());
+                    lore.add("§0UUID:" + e.getWhoClicked().getUniqueId());
+                    ItemMeta tempMeta = tempstack.getItemMeta();
+                    tempMeta.setLore(lore);
+                    tempstack.setItemMeta(tempMeta);
+                    e.getWhoClicked().getInventory().setItemInMainHand(tempstack);
+                    ConfigUtil.data.set("Data." + e.getWhoClicked().getName() + ".data", itemToString(tempstack));
                     ConfigUtil.data.set("Data." + e.getWhoClicked().getName() + ".time", dateTime.format(formatter));
                     ConfigUtil.data.set("Data." + e.getWhoClicked().getName() + ".count", 1);
                     List<String> playerlist = ConfigUtil.data.getStringList("PlayerList");
@@ -84,8 +102,8 @@ public class Listeners implements Listener {
                     return;//如果可用保险次数不为一则退出
                 }
                 int round = 0;
-                for (ItemStack s:((Player) e.getWhoClicked()).getInventory().getContents()){
-                    if (getItemNBT(s).contains("UUID:" + e.getWhoClicked().getUniqueId())) {
+                for (ItemStack s: e.getWhoClicked().getInventory().getContents()){
+                    if (itemToString(s).contains("UUID:" + e.getWhoClicked().getUniqueId())) {
                         round += s.getAmount();
                         if(round >= 1) {
                             e.getWhoClicked().sendMessage("§9[§3SIBP§9] §f-> §e§l检测到背包已拥有保险物品，无法领取");
@@ -96,7 +114,8 @@ public class Listeners implements Listener {
                 if (round != 0){
                     return;//如果背包内有保险物品则退出
                 }
-                giveItem((Player) e.getWhoClicked(), NBTItem.convertNBTtoItem(new NBTContainer(ConfigUtil.data.getString("Data." + e.getWhoClicked().getName() + ".data"))));
+                //giveItem((Player) e.getWhoClicked(), NBTItem.convertNBTtoItem(new NBTContainer(ConfigUtil.data.getString("Data." + e.getWhoClicked().getName() + ".data"))));
+                e.getWhoClicked().getInventory().addItem(NBTItem.convertNBTtoItem(new NBTContainer(ConfigUtil.data.getString("Data." + e.getWhoClicked().getName() + ".data"))));
                 ConfigUtil.data.set("Data." + e.getWhoClicked().getName() + ".count", 0);
                 List<String> playerlist = ConfigUtil.data.getStringList("PlayerList");
                 playerlist.remove(e.getWhoClicked().getName());
@@ -116,10 +135,10 @@ public class Listeners implements Listener {
         if (!(f.getWhoClicked() instanceof Player) || f.getClickedInventory() == null || !f.getClickedInventory().getType().equals(InventoryType.PLAYER)){
             return;
         }
-        if (IItem.isEmpty(f.getCurrentItem())){
+        if (isEmpty(f.getCurrentItem())){
             return;
         }
-        String nbtOfHandItem1 = getItemNBT(f.getCurrentItem());
+        String nbtOfHandItem1 = itemToString(f.getCurrentItem());
         if (nbtOfHandItem1.contains("UUID:") && !nbtOfHandItem1.contains("UUID:" + f.getWhoClicked().getUniqueId())) {
             f.setCancelled(true);
             f.getWhoClicked().sendMessage("§9[§3SIBP§9] §f-> §e§l物品已被绑定，无法点击");
@@ -128,7 +147,7 @@ public class Listeners implements Listener {
 
     @EventHandler
     public void SecurityPickup(EntityPickupItemEvent e){
-        String nbtOfHandItem2 = getItemNBT(e.getItem().getItemStack());
+        String nbtOfHandItem2 = itemToString(e.getItem().getItemStack());
         if (!(e.getEntity() instanceof Player)){
             return;
         }
@@ -138,7 +157,7 @@ public class Listeners implements Listener {
         } else if(nbtOfHandItem2.contains("UUID:" + e.getEntity().getUniqueId())){
             int round = 0;
             for (ItemStack s:((Player) e.getEntity()).getInventory().getContents()){
-                if (getItemNBT(s).contains("UUID:" + e.getEntity().getUniqueId())) {
+                if (itemToString(s).contains("UUID:" + e.getEntity().getUniqueId())) {
                     round += s.getAmount();
                     if(round >= 1) {
                         e.getEntity().sendMessage("§9[§3SIBP§9] §f-> §e§l检测到同时拥有两件保险物品，已删除");
@@ -153,12 +172,12 @@ public class Listeners implements Listener {
 
     @EventHandler
     public void SecurityUse(PlayerItemHeldEvent e){
-       if (!getItemNBT(e.getPlayer().getInventory().getItem(e.getNewSlot())).contains("UUID:" + e.getPlayer().getUniqueId())){
+       if (!itemToString(e.getPlayer().getInventory().getItem(e.getNewSlot())).contains("UUID:" + e.getPlayer().getUniqueId())){
            return;
        }
         int round = 0;
-        for (ItemStack s:((Player) e.getPlayer()).getInventory().getContents()){
-            if (getItemNBT(s).contains("UUID:" + e.getPlayer().getUniqueId())) {
+        for (ItemStack s: e.getPlayer().getInventory().getContents()){
+            if (itemToString(s).contains("UUID:" + e.getPlayer().getUniqueId())) {
                 round += s.getAmount();
                 if(round >= 2) {
                     e.getPlayer().sendMessage("§9[§3SIBP§9] §f-> §e§l检测到同时拥有两件保险物品，已删除");

@@ -3,7 +3,7 @@ version: '${version}'
 main: com.sixarea.securityitembypoints.SecurityItemByPoints
 authors: [ Jo_maYple ]
 description: a way to save you Item
-depend: [NBTAPI, YukiNoaAPI, PlayerPoints]
+depend: [NBTAPI, PlayerPoints]
 commands:
   securityitembypoints:
     aliases: [sibp]
