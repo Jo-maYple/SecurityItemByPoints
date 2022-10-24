@@ -40,6 +40,11 @@ public class Listeners implements Listener {
     public static ItemStack stringToItem(String st){
         return NBTItem.convertNBTtoItem(new NBTContainer(st));
     }
+    public static boolean isSlashBlade(ItemStack itemstack){
+        String itemMeta = itemstack.getType().toString().toUpperCase();
+        List<String> itemMetaList = ConfigUtil.config.getStringList("ItemMetaWhiteList");
+        return itemMetaList.contains(itemMeta);
+    }
     @EventHandler
     public void onClick(InventoryClickEvent e){
         LocalDateTime dateTime = LocalDateTime.now();
@@ -61,7 +66,12 @@ public class Listeners implements Listener {
                     e.getWhoClicked().sendMessage("§9[§3SIBP§9] §f-> §e§l点券不足");
                 } else if (ConfigUtil.data.getString("Data." + e.getWhoClicked().getName() + ".count", "0").equals("1")){
                     e.getWhoClicked().sendMessage("§9[§3SIBP§9] §f-> §e§l你已经购买过一份保险并且处于生效中");
-                } else {
+                } else if (isEmpty(e.getWhoClicked().getInventory().getItemInMainHand())){
+                    e.getWhoClicked().sendMessage("§9[§3SIBP§9] §f-> §e§l你不能空手");
+                } else if (!isSlashBlade(e.getWhoClicked().getInventory().getItemInMainHand())){
+                    e.getWhoClicked().sendMessage("§9[§3SIBP§9] §f-> §e§l非白名单物品");
+                }
+                else {
                     e.getWhoClicked().closeInventory();
                     SecurityItemByPoints.ppAPI.take(e.getWhoClicked().getUniqueId(), 1000);
                     e.getWhoClicked().sendMessage("购买成功");
@@ -69,7 +79,7 @@ public class Listeners implements Listener {
                     //ItemBuilder ib = new ItemBuilder(tempstack);
                     //ib.addLore("§0UUID:" + e.getWhoClicked().getUniqueId());
                     List<String> lore = new ArrayList<>();
-                    if (tempstack.getItemMeta().hasLore())
+                    if (tempstack.getItemMeta().hasLore())//你空指针你马呢
                         lore.addAll(tempstack.getItemMeta().getLore());
                     lore.add("§0UUID:" + e.getWhoClicked().getUniqueId());
                     ItemMeta tempMeta = tempstack.getItemMeta();
@@ -132,7 +142,7 @@ public class Listeners implements Listener {
 
     @EventHandler
     public void Security1(InventoryClickEvent f){
-        if (!(f.getWhoClicked() instanceof Player) || f.getClickedInventory() == null || !f.getClickedInventory().getType().equals(InventoryType.PLAYER)){
+        if (!(f.getWhoClicked() instanceof Player) || f.getClickedInventory() == null){
             return;
         }
         if (isEmpty(f.getCurrentItem())){
@@ -172,20 +182,25 @@ public class Listeners implements Listener {
 
     @EventHandler
     public void SecurityUse(PlayerItemHeldEvent e){
-       if (!itemToString(e.getPlayer().getInventory().getItem(e.getNewSlot())).contains("UUID:" + e.getPlayer().getUniqueId())){
-           return;
-       }
+        if (!itemToString(e.getPlayer().getInventory().getItem(e.getNewSlot())).contains("UUID:")){
+            return;
+        }
+        if (!itemToString(e.getPlayer().getInventory().getItem(e.getNewSlot())).contains("UUID:" + e.getPlayer().getUniqueId())){
+            e.setCancelled(true);
+            e.getPlayer().sendMessage("§9[§3SIBP§9] §f-> §e§l物品已被绑定，无法互动");
+            return;
+        }
         int round = 0;
         for (ItemStack s: e.getPlayer().getInventory().getContents()){
-            if (itemToString(s).contains("UUID:" + e.getPlayer().getUniqueId())) {
-                round += s.getAmount();
-                if(round >= 2) {
-                    e.getPlayer().sendMessage("§9[§3SIBP§9] §f-> §e§l检测到同时拥有两件保险物品，已删除");
-                    e.setCancelled(true);
-                    e.getPlayer().getInventory().setItem(e.getNewSlot(), new ItemStack(AIR));
-                    break;
-                }
-            }
+           if (itemToString(s).contains("UUID:" + e.getPlayer().getUniqueId())) {
+               round += s.getAmount();
+               if(round >= 2) {
+                   e.getPlayer().sendMessage("§9[§3SIBP§9] §f-> §e§l检测到同时拥有两件保险物品，已删除");
+                   e.setCancelled(true);
+                   e.getPlayer().getInventory().setItem(e.getNewSlot(), new ItemStack(AIR));
+                   break;
+               }
+           }
         }
     }
 }

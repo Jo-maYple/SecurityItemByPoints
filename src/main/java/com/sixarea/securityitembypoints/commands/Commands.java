@@ -3,6 +3,7 @@ package com.sixarea.securityitembypoints.commands;
 import com.sixarea.securityitembypoints.SecurityItemByPoints;
 import com.sixarea.securityitembypoints.configUtil.ConfigUtil;
 import com.sixarea.securityitembypoints.gui.GUI;
+import com.sixarea.securityitembypoints.listeners.Listeners;
 import de.tr7zw.nbtapi.NBTCompound;
 import de.tr7zw.nbtapi.NBTContainer;
 import de.tr7zw.nbtapi.NBTItem;
@@ -33,6 +34,7 @@ public class Commands implements TabExecutor {
                 sender.sendMessage("§9[§3SIBP§9] §f-> §c/sibp open §e打开保险购买界面");
                 sender.sendMessage("§9[§3SIBP§9] §f-> §c/sibp list §e展示保险购买列表");
                 sender.sendMessage("§9[§3SIBP§9] §f-> §c/sibp get §7[§c玩家ID§7] §e获取玩家保险物品(无视保险次数限制)");
+                sender.sendMessage("§9[§3SIBP§9] §f-> §c/sibp debug §7[§caddItemMeta§r/§cdelItemMeta§r/§clistItemMeta§7] §e对白名单物品进行§7[§c增加§r/§c删除§r/§c修改§7](需要对应类型物品拿在手中)");
                 sender.sendMessage("§9[§3SIBP§9] §f-> §c/sibp reload §e重载配置文件");
                 sender.sendMessage("§9[§3SIBP§9] §f-> §a---------------------------------------");
             } else {
@@ -54,6 +56,7 @@ public class Commands implements TabExecutor {
                     sender.sendMessage("§9[§3SIBP§9] §f-> §c/sibp open §e打开保险购买界面");
                     sender.sendMessage("§9[§3SIBP§9] §f-> §c/sibp list §e展示保险购买列表");
                     sender.sendMessage("§9[§3SIBP§9] §f-> §c/sibp get §7[§c玩家ID§7] §e获取玩家保险物品(无视保险次数限制)");
+                    sender.sendMessage("§9[§3SIBP§9] §f-> §c/sibp debug §7[§caddItemMeta§r/§cdelItemMeta§r/§clistItemMeta§7] §e对白名单物品进行§7[§c增加§r/§c删除§r/§c修改§7](需要对应类型物品拿在手中)");
                     sender.sendMessage("§9[§3SIBP§9] §f-> §c/sibp reload §e重载配置文件");
                     sender.sendMessage("§9[§3SIBP§9] §f-> §a---------------------------------------");
                 } else {
@@ -137,7 +140,7 @@ public class Commands implements TabExecutor {
                 else if (!sender.hasPermission("sibp.op")) {
                     sender.sendMessage("§9[§3SIBP§9] §f-> §e§l您没有使用该命令的权限");
                 } else {
-                    if (((Player)sender).getEquipment().getItemInMainHand() == null || ((Player)sender).getEquipment().getItemInMainHand().getType().equals(Material.AIR)){
+                    if (!Listeners.isEmpty(((Player) sender).getInventory().getItemInMainHand())){
                         if (args[1].equalsIgnoreCase("notice")) {
                             NBTCompound itemData = NBTItem.convertItemtoNBT(((Player) sender).getInventory().getItemInMainHand());
                             ConfigUtil.config.set("ChestInfo.notice", itemData.toString());
@@ -199,16 +202,75 @@ public class Commands implements TabExecutor {
                         sender.sendMessage("§9[§3SIBP§9] §f-> §e§l发送成功");
                     }
                 }
-            return true;
+                return true;
+            }
+            if (args[0].equalsIgnoreCase("debug")) {
+                if (!(sender instanceof Player)) {
+                    sender.sendMessage("§9[§3SIBP§9] §f-> §e§l仅限玩家")
+                    ;return true;
+                }
+                else if (!sender.hasPermission("sibp.op")) {
+                    sender.sendMessage("§9[§3SIBP§9] §f-> §e§l您没有使用该命令的权限");
+                    return true;
+                }
+                if (args[1].equalsIgnoreCase("addItemMeta")) {
+                    boolean flag = true;
+                    List<String> itemMeta = ConfigUtil.config.getStringList("ItemMetaWhiteList");
+                    if (!itemMeta.contains(((Player) sender).getInventory().getItemInMainHand().getType().toString().toUpperCase()))
+                        itemMeta.add(((Player) sender).getInventory().getItemInMainHand().getType().toString().toUpperCase());
+                    else
+                        flag = false;
+                    ConfigUtil.config.set("ItemMetaWhiteList", itemMeta);
+                    try {
+                        File file =new File(SecurityItemByPoints.plugin.getDataFolder(), "config.yml");
+                        ConfigUtil.config.save(file);
+                    } catch (IOException s){
+                        s.printStackTrace();
+                    }
+                    if (flag) sender.sendMessage("§9[§3SIBP§9] §f-> §e§l添加成功");
+                    else sender.sendMessage("§9[§3SIBP§9] §f-> §e§l物品已存在于白名单列表中");
+                    return true;
+                }
+                if (args[1].equalsIgnoreCase("delItemMeta")) {
+                    boolean flag = true;
+                    List<String> itemMeta = ConfigUtil.config.getStringList("ItemMetaWhiteList");
+                    if (itemMeta.contains(((Player) sender).getInventory().getItemInMainHand().getType().toString().toUpperCase()))
+                        itemMeta.remove(((Player) sender).getInventory().getItemInMainHand().getType().toString().toUpperCase());
+                    else
+                        flag = false;
+                        ConfigUtil.config.set("ItemMetaWhiteList", itemMeta);
+                    try {
+                        File file =new File(SecurityItemByPoints.plugin.getDataFolder(), "config.yml");
+                        ConfigUtil.config.save(file);
+                    } catch (IOException s){
+                        s.printStackTrace();
+                    }
+                    if (flag) sender.sendMessage("§9[§3SIBP§9] §f-> §e§l移除成功");
+                    else sender.sendMessage("§9[§3SIBP§9] §f-> §e§l物品不存在于白名单列表中");
+                    return true;
+                }
+                if (args[1].equalsIgnoreCase("listItemMeta")){
+                    sender.sendMessage("§9[§3SIBP§9] §f-> §e§l已经添加的白名单物品有:");
+                    StringBuilder sb = new StringBuilder();
+                    for (String s: ConfigUtil.config.getStringList("ItemMetaWhiteList"))
+                            sb.append(" §f-§e" + s);
+                    if(sb.length() != 0){
+                        sender.sendMessage(sb.toString());
+                    } else {
+                        sender.sendMessage("§f -§c 无物品");
+                    }
+                    return true;
+                }
             }
         }
         sender.sendMessage("§9[§3SIBP§9] §f-> §e§l指令输入有误");
         return true;
     }
 
-    private final List<String> ARGS1OP = Arrays.asList("setnbt", "help", "open", "list", "get", "reload");
+    private final List<String> ARGS1OP = Arrays.asList("setnbt", "help", "open", "list", "get", "reload", "debug");
     private final List<String> ARGS1 = Collections.singletonList("open");
     private final List<String> ARGS2 = Arrays.asList("notice", "buy", "history");
+    private final List<String> ARGS3 = Arrays.asList("addItemMeta", "delItemMeta", "listItemMeta");
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command cmd, String label, String[] args){
@@ -225,6 +287,9 @@ public class Commands implements TabExecutor {
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("get") && sender.hasPermission("sibp.op")){
             return ConfigUtil.data.getStringList("PlayerList");
+        }
+        if (args.length == 2 && args[0].equalsIgnoreCase("debug") && sender.hasPermission("sibp.op")){
+            return ARGS3;
         }
         return null;
     }

@@ -3,3 +3,4 @@ ChestInfo:
   notice: []
   buy: []
   history: []
+ItemMetaWhiteList : []
